@@ -225,22 +225,40 @@ class CalcudokuSolver(object):
     def __init__(self, size):
         self.size = size
         self.checker   = CalcudokuChecker(self.size)
-        self.generator = CalcudokuGenerator(self.size)
+        ###self.generator = CalcudokuGenerator(self.size)
+        self.grid = zeros((self.size,self.size))
         self.solution  = None
 
     def solve(self):
         if verbose > 0:
             print "Going to solve the calcudoku..."
-
-            row = self.size-1
+"""
+        self.pos.x = 0
+        self.pos.y = 0
+         
+        if self.pos.x > self.size - 1:
+             self.x = 0
+             self.y = self.y + 1
+             if self.y > self.size - 1:
+                if verbose > 2:
+                    print "Reached last column"
+        while (self.valid(self.grid[self.x, self.y]) == True and 
+               self.checker.
+        self.grid[self.x, self.y] = self.grid[self.x, self.y] + 1
+        self.x = self.x+1
+"""                
+        
+"""
+        row = self.size-1
             
-            if (self.loop_rows(row) == True):
-                if verbose > 1:
-                    print "Solution found"
-                self.solution = self.generator.grid
-                return True
-            else:
-                return False
+        if (self.loop_rows(row) == True):
+            if verbose > 1:
+                print "Solution found"
+            self.solution = self.generator.grid
+            return True
+        else:
+            return False
+"""
 
     def print_solution(self):
         # Print the graph that is stored as being the solution.
@@ -254,10 +272,28 @@ class CalcudokuSolver(object):
         # Pass on group to checker.
         self.checker.add_group(Group)
 
+    
     # Try 3: construct solution table from valid_row combinations
+"""
+# Try 1: fixed loops
+        for row in self.generator.valid_rows:
+            self.generator.grid[self.size-1] = row
+            for row in self.generator.valid_rows:
+                self.generator.grid[self.size-2] = row
+                for row in self.generator.valid_rows:
+                    self.generator.grid[self.size-3] = row
+                    for row in self.generator.valid_rows:
+                        self.generator.grid[self.size-4] = row
+                        if self.checker.grid_is_solution(self.generator.grid):
+                            # Solution found!
+                            self.solution = self.generator.grid
+                            return True
 
-    # Try 2: recursive
-    # Result: max recursion depth exceeded
+        # No solution found
+        return False
+
+# Try 2: recursive
+# Result: max recursion depth exceeded
 
     def loop_rows(self, loop_row):
     # Recursively traverse all rows and try every possible row
@@ -305,24 +341,6 @@ class CalcudokuSolver(object):
                 loop_row = loop_row + 1
 
         return self.loop_rows(loop_row)
-
-"""
-# Try 1: fixed loops
-        for row in self.generator.valid_rows:
-            self.generator.grid[self.size-1] = row
-            for row in self.generator.valid_rows:
-                self.generator.grid[self.size-2] = row
-                for row in self.generator.valid_rows:
-                    self.generator.grid[self.size-3] = row
-                    for row in self.generator.valid_rows:
-                        self.generator.grid[self.size-4] = row
-                        if self.checker.grid_is_solution(self.generator.grid):
-                            # Solution found!
-                            self.solution = self.generator.grid
-                            return True
-
-        # No solution found
-        return False
 """            
 
 #### MAIN ####
