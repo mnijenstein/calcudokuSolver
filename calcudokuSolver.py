@@ -11,6 +11,8 @@ import operator
 import weakref
 import itertools
 import logging as log
+import string
+import os
 
 ### options ###
 from optparse import OptionParser
@@ -45,6 +47,9 @@ if not (verbose == "QUIET"):
     
 ### input file ###
 input_file = options.INPUT_FILE
+
+### output_dir ###
+output_dir = os.path.join(os.getcwd(),"output")
 
 class CalcudokuChecker(object):
     def __init__(self, size, arr=None):
@@ -193,23 +198,42 @@ class CalcudokuChecker(object):
 # 2: a mathematical operator that must be applied to those cells
 # 3: the expected result of the operation
 class Group(object):
-    def __init__(self, result, operator, *cells):
+    def __init__(self, operator, result):
         self.result = result
         self.operator = operator
         self.cells = []
+            
+    def add_cells(self, *cells):
         for cell in cells:
             self.cells.append(cell)
+            
+    def print_group(self):
+        # Print all information about the given group
+        # Group may be entered as:
+        # 1. struct of type Group
+        
+        log.debug("Result: %i" % self.result)
+        log.debug("Operator: %r" % self.operator)
+        log.debug("Cells: ")
+        for cell in self.cells:
+            log.debug("(%i,%i)" % cell.get_coordinate())
 
 # A Cell defines a certain position in the grid
 class Cell(object):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
+        self.x = int(x)
+        self.y = int(y)
 
     # Return coordinate of this cell
     def get_coordinate(self):
         return (self.x, self.y)
-        
+
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
     # Set value of this cell
     def set_value(self, value):
         self.value = value
@@ -234,6 +258,52 @@ class CalcudokuSolver(object):
         
     def set_size(self, size):
         self.__init__(size)
+        
+    def read_calcudoku(self, input_file=None):
+        size_known = False
+        operators = {
+            "+": operator.add,
+            "-": operator.sub,
+            "*": operator.mul,
+            "x": operator.mul,
+            "/": operator.div,
+            "%": operator.mod
+        }
+        
+        if (input_file == None):
+            log.warn("Read calcudoku: No file given")
+        else:
+            with open(input_file,'r') as file:
+                log.debug("Read calcudoku: Opening file '%s'" % input_file)
+                for line in file:
+                    log.debug("Read line: %s" % line.strip())
+                    if (line[0] == "#"): #commented line
+                        log.debug("Commented line")
+                    else:
+                        if not size_known: #search for size first
+                            log.debug("Searching for size...")
+                            line = string.join(line.split(),"")
+                            if line[:4].lower() == "size":
+                                line = line[5:].split("#")
+                                self.size = string.atoi(line[0])
+                                size_known = True
+                                log.info("Found size: %i" % self.size)
+                        else:
+                            line = line.split()
+                            if line[0] in operators:
+                                group = Group(operators.get(line[0]),string.atoi(line[1]))
+                                for coord in line[2:]:
+                                    coords = coord.split(",")
+                                    group.add_cells(Cell(string.atoi(coords[0])-1,string.atoi(coords[1])-1))
+                                log.debug("Added group: ")
+                                log.debug(group.print_group())
+                                self.add_group(group)
+
+                            else:
+                                log.warn("No operator found as first element in row")
+                        
+            
+        return
 
     def solve(self):
         if not self.initialized:
@@ -315,33 +385,20 @@ class CalcudokuSolver(object):
         else:
             log.info("No solution found yet")
 
-    def add_group(self, Group):
+    def add_group(self, group):
         if not self.initialized:
             log.warn("Add group: Not yet initialized")
             return False
         # Pass on group to checker.
-        self.checker.add_group(Group)
+        self.checker.add_group(group)
 
 #### MAIN ####
 solver = CalcudokuSolver(4)
+if not (input_file == ""):
+    solver.read_calcudoku(input_file)
 
-# test set from Vk430
-#grid = array([[2,4,1,3],[1,3,4,2],[4,2,3,1],[3,1,2,4]])
-solver.add_group(Group(6, operator.add, Cell(0,0), Cell(1,0), Cell(1,1)))
-solver.add_group(Group(10, operator.add, Cell(0,1), Cell(0,2), Cell(0,3), Cell(1,3)))
-solver.add_group(Group(24, operator.mul, Cell(2,0), Cell(2,1), Cell(3,0)))
-solver.add_group(Group(1, operator.sub, Cell(1,2), Cell(2,2)))
-solver.add_group(Group(0, operator.sub, Cell(2,3), Cell(3,1), Cell(3,2), Cell(3,3)))
+print("Calcudoku succesfully read")
+raw_input("Press key to continu...")
 
-"""
-#test set
-#grid = array([[2,4,3,1],[4,1,2,3],[3,2,1,4],[1,3,4,2]])
-solver.add_group(Group(32, operator.mul, Cell(0,0), Cell(0,1), Cell(1,0)))
-solver.add_group(Group( 4, operator.add, Cell(2,0), Cell(3,0)))
-solver.add_group(Group( 1, operator.div, Cell(1,1), Cell(1,2), Cell(2,1)))
-solver.add_group(Group( 1, operator.div, Cell(0,2), Cell(0,3), Cell(1,3)))
-solver.add_group(Group(12, operator.mul, Cell(2,2), Cell(3,1), Cell(3,2)))
-solver.add_group(Group( 2, operator.div, Cell(2,3), Cell(3,3)))
-"""
 solver.solve()
 solver.print_solution()
