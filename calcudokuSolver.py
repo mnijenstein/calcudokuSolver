@@ -10,12 +10,41 @@ from numpy import *
 import operator
 import weakref
 import itertools
+import logging as log
 
-print "Calcudoku Solver"
-print "-" * 20
+### options ###
+from optparse import OptionParser
 
-# TODO: params (verbose, size)
-verbose = 0
+parser = OptionParser()
+parser.add_option("-i", "--input-file", dest="INPUT_FILE", 
+                  help="solve INPUT_FILE", metavar="INPUT_FILE")
+parser.add_option("-v", "--verbose", dest="VERBOSE",
+                  help="print verbose output with level VERBOSE and higher\n QUIET, CRIT, ERR, WARN, INFO, DEBUG", metavar="VERBOSE")
+
+(options, args) = parser.parse_args()
+
+### verbose config ###
+verbose = options.VERBOSE
+if verbose == "CRIT":
+    log_level = log.CRITICAL
+elif verbose == "ERR":
+    log_level = log.ERR
+elif verbose == "WARN":
+    log_level = log.WARN
+elif verbose == "INFO":
+    log_level = log.INFO
+elif verbose == "DEBUG":
+    log_level = log.DEBUG
+else:
+    log_level = log.NOTSET
+
+if not (verbose == "QUIET"):
+    log.basicConfig(format="%(levelname)s: %(message)s", level=log_level)
+    log.info("Calcudoku Solver")
+    log.info("-" * 20)
+    
+### input file ###
+input_file = options.INPUT_FILE
 
 class CalcudokuChecker(object):
     def __init__(self, size, arr=None):
@@ -47,9 +76,9 @@ class CalcudokuChecker(object):
         # If a grid is given, that grid is checked. Otherwise, the current grid will be checked.
 
         if self.grid_is_solution(grid):
-            print "Solution is VALID"
+            log.info("Solution is VALID")
         else:
-            print "Solution is INVALID"
+            log.info("Solution is INVALID")
 
     def grid_is_solution(self, grid=None):
         # Returns whether the grid is a valid solution to the calcudoku.
@@ -64,9 +93,8 @@ class CalcudokuChecker(object):
         # Check groups. Stop if one fails.
         for i in range(len(self.groups)):
             if not self.evaluate_group(i):
-                if verbose > 1:
-                    print "Group %d fails" % i
-                    self.print_group(i)
+                log.debug("Group %d fails" % i)
+                log.debug(self.print_group(i))
                 return False
 
         # Check rows and colums. Stop if one fails.
@@ -86,9 +114,8 @@ class CalcudokuChecker(object):
 
             if not all(result == 0):
                 # Stops as soon as a wrong row is found.
-                if verbose > 1:
-                    print "Row %d fails" % i
-                    print array(self.grid[i,:])
+                log.debug("Row %d fails" % i)
+                log.debug(array(self.grid[i,:]))
                 return False
         return True
 
@@ -105,9 +132,8 @@ class CalcudokuChecker(object):
             result = column - validColumn
             if not all(result == 0):
                 # Stops as soon as a wrong column is found.
-                if verbose > 1:
-                    print "Column %d fails" % i
-                    #print array(self.grid[:,i])
+                log.debug("Column %d fails" % i)
+                log.debug(array(self.grid[:,i]))
                 return False
         return True
 
@@ -122,21 +148,20 @@ class CalcudokuChecker(object):
         elif type(Group):
             tempGroup = i
         else:
-            if verbose > 1:
-                print "Not a group. Nothing to print"
+            log.debug("Not a group. Nothing to print")
             return False
         
-        print "Result: ", tempGroup.result
-        print "Operator: ", tempGroup.operator
-        print "Cells: "
+        log.debug("Result: %i" % tempGroup.result)
+        log.debug("Operator: %r" % tempGroup.operator)
+        log.debug("Cells: ")
         for cell in tempGroup.cells:
-            print cell.get_coordinate(), " = ", self.grid[cell.get_coordinate()]
+            log.debug("(%i,%i)" % cell.get_coordinate())
+            log.debug("Value: %i" % self.grid[cell.get_coordinate()])
 
     def evaluate_group(self, i):
         # Check if the group evaluates correctly with the given grid
 
-        if verbose > 1:
-            print "Evaluating group ", i
+        log.debug("Evaluating group %i" % i)
 
         group = self.groups[i]
             
@@ -146,6 +171,7 @@ class CalcudokuChecker(object):
         for cell in group.cells[1:]:
             outcome = self.groups[i].operator(outcome, self.grid[cell.get_coordinate()])
 
+        log.debug("Outcome: %i" % outcome)
         return outcome == self.groups[i].result
 
     def sort_on_value(self, groupCells):
@@ -183,7 +209,7 @@ class Cell(object):
     # Return coordinate of this cell
     def get_coordinate(self):
         return (self.x, self.y)
-
+        
     # Set value of this cell
     def set_value(self, value):
         self.value = value
@@ -193,15 +219,28 @@ class Cell(object):
         return self.value
 
 class CalcudokuSolver(object):
-    def __init__(self, size):
-        self.size = size
-        self.checker   = CalcudokuChecker(self.size)
-        self.grid = zeros((self.size,self.size))
+    def __init__(self, size=0):
+        self.initialized = False
+        if size > 0:
+            self.size = size
+            self.checker = CalcudokuChecker(self.size)
+            self.grid = zeros((self.size,self.size))
+            self.initialized = True
+            log.info("Initialized")
+        else:
+            log.warn("Solver init: No real size => Not initialized")
+            
         self.solution  = False
+        
+    def set_size(self, size):
+        self.__init__(size)
 
     def solve(self):
-        if verbose > 0:
-            print "Going to solve the calcudoku..."
+        if not self.initialized:
+            log.warn("Solve: Not yet initialized")
+            return False
+            
+        log.info("Going to solve the calcudoku...")
 
         self.x = 0
         self.y = 0
@@ -223,10 +262,9 @@ class CalcudokuSolver(object):
             if self.x > self.size - 1:
                 self.x = 0
                 self.y = self.y + 1
-            
-            if verbose > 0:
-                self.checker.set_grid(self.grid) 
-                self.checker.print_grid()
+
+            log.debug("Building grid: ")
+            log.debug(self.grid)
         
         # Find solution by increasing cell values starting at the lower right corner
         self.x = self.size - 1
@@ -262,10 +300,9 @@ class CalcudokuSolver(object):
                 if self.y == self.size:
                     self.y = self.size - 1
                     self.x = self.y
-                
-            if verbose > 0:
-                self.checker.set_grid(self.grid) 
-                self.checker.print_grid()
+                    
+            log.debug("Trying grid: ")
+            log.debug(self.grid)
                 
         # If we come out of the while-loop, a solution is found
         self.solution = True
@@ -273,23 +310,20 @@ class CalcudokuSolver(object):
     def print_solution(self):
         # Print the graph that is stored as being the solution.
         if self.solution == True:
-            print "Solution:"
-            print self.grid
+            log.info("Solution:")
+            log.info("\n %s" % self.grid)
         else:
-            print "No solution found yet"
+            log.info("No solution found yet")
 
     def add_group(self, Group):
+        if not self.initialized:
+            log.warn("Add group: Not yet initialized")
+            return False
         # Pass on group to checker.
         self.checker.add_group(Group)
 
 #### MAIN ####
-
-#size = 3
-size = 4
-solver = CalcudokuSolver(size)
-
-# TODO: solver.read_calcudoku(file)
-
+solver = CalcudokuSolver(4)
 
 # test set from Vk430
 #grid = array([[2,4,1,3],[1,3,4,2],[4,2,3,1],[3,1,2,4]])
