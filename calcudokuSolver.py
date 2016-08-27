@@ -13,6 +13,7 @@ import itertools
 import logging as log
 import string
 import os
+import time
 
 ### options ###
 from optparse import OptionParser
@@ -250,6 +251,8 @@ class CalcudokuSolver(object):
             self.checker = CalcudokuChecker(self.size)
             self.grid = zeros((self.size,self.size))
             self.initialized = True
+            self.start_time = 0
+            self.stop_time = 0
             log.info("Initialized")
         else:
             log.warn("Solver init: No real size => Not initialized")
@@ -285,7 +288,7 @@ class CalcudokuSolver(object):
                             line = string.join(line.split(),"")
                             if line[:4].lower() == "size":
                                 line = line[5:].split("#")
-                                self.size = string.atoi(line[0])
+                                self.set_size(string.atoi(line[0]))
                                 size_known = True
                                 log.info("Found size: %i" % self.size)
                         else:
@@ -315,32 +318,18 @@ class CalcudokuSolver(object):
         self.x = 0
         self.y = 0
 
-		# Initialize grid with possible solution
-        while (not self.y == self.size):
-            
-            # Only test values that unique in a row and column
-            while ( self.grid[self.y, self.x] == 0
-                or (not self.y == 0 and self.grid[self.y, self.x] in self.grid[:self.y,self.x])
-                or (not self.x == 0 and self.grid[self.y, self.x] in self.grid[self.y, :self.x])):
-                
-                self.grid[self.y, self.x] = self.grid[self.y, self.x] + 1
-                
-            # Cell has valid value, so set marker at next cell
-            self.x = self.x + 1
-            
-            # If at the end of a row, start at the start of the row below
-            if self.x > self.size - 1:
-                self.x = 0
-                self.y = self.y + 1
+        # Initialize grid with possible solution
+        log.info("Initializing grid...")
+        self.grid = ones((self.size, self.size))
+        log.info(self.grid)
 
-            log.debug("Building grid: ")
-            log.debug(self.grid)
-        
+        self.start_time = time.clock()
+
         # Find solution by increasing cell values starting at the lower right corner
         self.x = self.size - 1
         self.y = self.size - 1
         while (not self.checker.grid_is_solution(self.grid)):
-        	# Always increase cell once to keep progress
+            # Always increase cell once to keep progress
             self.force = True
             
             # Only test values that unique in a row and column
@@ -375,8 +364,14 @@ class CalcudokuSolver(object):
             log.debug(self.grid)
                 
         # If we come out of the while-loop, a solution is found
+        self.stop_time = time.clock()
         self.solution = True
         
+    def print_elapsed_time(self):
+        # Print the time it took to solve the puzzle
+        if self.solution == True:
+            log.info("Elapsed time: %.2f s" % (self.stop_time-self.start_time))
+
     def print_solution(self):
         # Print the graph that is stored as being the solution.
         if self.solution == True:
@@ -384,6 +379,27 @@ class CalcudokuSolver(object):
             log.info("\n %s" % self.grid)
         else:
             log.info("No solution found yet")
+
+    def write_solution_to_file(self, output_file=None):
+        if self.solution == False:
+            log.info("Cannot print solution: No solution found yet.")
+        else:
+            if not os.path.isdir(output_dir):
+                os.makedirs(output_dir)
+            if output_file == None:
+                log.warn("No filename given. Making one up myself.")
+                output_file = datetime.now().strftime(YYYYmmddHHmmss)
+                output_file = os.path.join(output_file,".out")
+            output_path = os.path.join(output_dir,os.path.basename(output_file))
+            log.debug(output_path)
+            
+            #outFile = open(output_path,'w')
+            #log.debug(outFile)
+            #log.debug(self.grid)
+            format = 'd '*self.size
+            savetxt(output_path,self.grid,fmt='%d')
+            #outFile.write(self.grid)
+            #outFile.close()
 
     def add_group(self, group):
         if not self.initialized:
@@ -393,7 +409,7 @@ class CalcudokuSolver(object):
         self.checker.add_group(group)
 
 #### MAIN ####
-solver = CalcudokuSolver(4)
+solver = CalcudokuSolver()
 if not (input_file == ""):
     solver.read_calcudoku(input_file)
 
@@ -402,3 +418,5 @@ raw_input("Press key to continu...")
 
 solver.solve()
 solver.print_solution()
+solver.print_elapsed_time()
+solver.write_solution_to_file(input_file)
