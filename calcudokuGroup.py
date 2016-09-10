@@ -24,6 +24,18 @@ class CalcudokuGroup(object):
         for cell in cells:
             self.cells.append(cell)
             
+    def group_info(self):
+        # Print all information about the given group
+        # Group may be entered as:
+        
+        str = "Result: %i" % self.result
+        str += "Operator: %r" % self.operator
+        str += "Cells: "
+        for cell in self.cells:
+            str += "(%i,%i)" % cell.get_coordinate()
+
+        return str
+
     def print_group(self):
         # Print all information about the given group
         # Group may be entered as:

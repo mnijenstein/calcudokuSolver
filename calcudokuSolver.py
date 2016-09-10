@@ -7,6 +7,8 @@
 #####################
 
 from numpy import *
+import cell
+import calcudokuGroup as cg
 import operator
 import weakref
 import itertools
@@ -22,18 +24,14 @@ parser = OptionParser()
 parser.add_option("-i", "--input-file", dest="INPUT_FILE", 
                   help="solve INPUT_FILE", metavar="INPUT_FILE")
 parser.add_option("-v", "--verbose", dest="VERBOSE",
-                  help="print verbose output with level VERBOSE and higher\n QUIET, CRIT, ERR, WARN, INFO, DEBUG", metavar="VERBOSE")
+                  help="print verbose output with level VERBOSE and higher\n QUIET, ERR, INFO, DEBUG", metavar="VERBOSE")
 
 (options, args) = parser.parse_args()
 
 ### verbose config ###
 verbose = options.VERBOSE
-if verbose == "CRIT":
-    log_level = log.CRITICAL
-elif verbose == "ERR":
+if verbose == "ERR":
     log_level = log.ERR
-elif verbose == "WARN":
-    log_level = log.WARN
 elif verbose == "INFO":
     log_level = log.INFO
 elif verbose == "DEBUG":
@@ -100,7 +98,7 @@ class CalcudokuChecker(object):
         for i in range(len(self.groups)):
             if not self.evaluate_group(i):
                 log.debug("Group %d fails" % i)
-                log.debug(self.print_group(i))
+                log.debug(self.groups[i].group_info())
                 return False
 
         # Check rows and colums. Stop if one fails.
@@ -143,37 +141,18 @@ class CalcudokuChecker(object):
                 return False
         return True
 
-    def print_group(self, i):
-        # Print all information about the given group
-        # Group may be entered as:
-        # 1. struct of type Group
-        # 2. index i of type int
-
-        if type(i) is int:
-            tempGroup = self.groups[i]
-        elif type(Group):
-            tempGroup = i
-        else:
-            log.debug("Not a group. Nothing to print")
-            return False
-        
-        log.debug("Result: %i" % tempGroup.result)
-        log.debug("Operator: %r" % tempGroup.operator)
-        log.debug("Cells: ")
-        for cell in tempGroup.cells:
-            log.debug("(%i,%i)" % cell.get_coordinate())
-            log.debug("Value: %i" % self.grid[cell.get_coordinate()])
-
     def evaluate_group(self, i):
         # Check if the group evaluates correctly with the given grid
 
         log.debug("Evaluating group %i" % i)
-
         group = self.groups[i]
-            
-        self.sort_on_value(group.cells)
-        outcome = self.grid[group.cells[0].get_coordinate()]
 
+        # Only sort for groups that require sorting (substraction and division)
+        if (group.operator == operator.sub or
+            group.operator == operator.div):
+            self.sort_on_value(group.cells)
+
+        outcome = self.grid[group.cells[0].get_coordinate()]
         for cell in group.cells[1:]:
             outcome = self.groups[i].operator(outcome, self.grid[cell.get_coordinate()])
 
@@ -193,55 +172,6 @@ class CalcudokuChecker(object):
                 groupCells[i+1] = groupCells[i]
                 groupCells[i] = tempCell
                 i += 1
- 
-# A Group (of cells) contains:
-# 1: references to grid cells 
-# 2: a mathematical operator that must be applied to those cells
-# 3: the expected result of the operation
-class Group(object):
-    def __init__(self, operator, result):
-        self.result = result
-        self.operator = operator
-        self.cells = []
-            
-    def add_cells(self, *cells):
-        for cell in cells:
-            self.cells.append(cell)
-            
-    def print_group(self):
-        # Print all information about the given group
-        # Group may be entered as:
-        # 1. struct of type Group
-        
-        log.debug("Result: %i" % self.result)
-        log.debug("Operator: %r" % self.operator)
-        log.debug("Cells: ")
-        for cell in self.cells:
-            log.debug("(%i,%i)" % cell.get_coordinate())
-
-# A Cell defines a certain position in the grid
-class Cell(object):
-    def __init__(self, x, y):
-        self.x = int(x)
-        self.y = int(y)
-
-    # Return coordinate of this cell
-    def get_coordinate(self):
-        return (self.x, self.y)
-
-    def get_x(self):
-        return self.x
-
-    def get_y(self):
-        return self.y
-
-    # Set value of this cell
-    def set_value(self, value):
-        self.value = value
-
-    # Get value of this cell
-    def get_value(self):
-        return self.value
 
 class CalcudokuSolver(object):
     def __init__(self, size=0):
@@ -270,6 +200,7 @@ class CalcudokuSolver(object):
             "*": operator.mul,
             "x": operator.mul,
             "/": operator.div,
+            ":": operator.div,
             "%": operator.mod
         }
         
@@ -294,18 +225,17 @@ class CalcudokuSolver(object):
                         else:
                             line = line.split()
                             if line[0] in operators:
-                                group = Group(operators.get(line[0]),string.atoi(line[1]))
+                                group = cg.CalcudokuGroup(operators.get(line[0]),string.atoi(line[1]))
                                 for coord in line[2:]:
                                     coords = coord.split(",")
-                                    group.add_cells(Cell(string.atoi(coords[0])-1,string.atoi(coords[1])-1))
+                                    group.add_cells(cell.Cell(string.atoi(coords[0])-1,string.atoi(coords[1])-1))
                                 log.debug("Added group: ")
-                                log.debug(group.print_group())
+                                log.debug(group.group_info())
                                 self.add_group(group)
 
                             else:
                                 log.warn("No operator found as first element in row")
                         
-            
         return
 
     def solve(self):
@@ -318,55 +248,81 @@ class CalcudokuSolver(object):
         self.x = 0
         self.y = 0
 
-        # Initialize grid with possible solution
+        # Initialize grid with ones
         log.info("Initializing grid...")
         self.grid = ones((self.size, self.size))
         log.info(self.grid)
 
         self.start_time = time.clock()
 
-        # Find solution by increasing cell values starting at the lower right corner
-        self.x = self.size - 1
-        self.y = self.size - 1
-        while (not self.checker.grid_is_solution(self.grid)):
-            # Always increase cell once to keep progress
-            self.force = True
-            
-            # Only test values that unique in a row and column
-            while (self.force == True
-                or (not self.y == 0 and self.grid[self.y, self.x] in self.grid[:self.y,self.x])
-                or (not self.x == 0 and self.grid[self.y, self.x] in self.grid[self.y, :self.x])):
-            
-                self.grid[self.y, self.x] = self.grid[self.y, self.x] + 1
+        # Find solution by increasing cell values starting at the top left corner
+        self.x = 0
+        self.y = 0
+        self.maxReached = False
+        self.force = False
+        while (self.y != self.x or self.x != self.size - 1 or 
+               not self.checker.grid_is_solution(self.grid)):
+
+            while ((not self.currentCellUnique() and not self.maxReached)
+                or self.force):
                 self.force = False
-                
-            # If a cell exceeds the maximum value, set it to 0 and go one cell back
-            if self.grid[self.y, self.x] == self.size + 1:
-                self.grid[self.y, self.x] = 0
-                self.x = self.x - 1
-                # If at the beginning of a row, start at the end of row above
-                if self.x < 0:
-                    self.y = self.y - 1
-                    self.x = self.size - 1
-            # Cell has valid value, so set marker at next cell
+                if not self.increaseCurrentCell():
+                    self.maxReached = True
+
+            if self.maxReached:
+                self.maxReached = False
+                self.grid[self.y, self.x] = 1
+                self.goToPreviousCell()
+                self.force = True
             else:
-                self.x = self.x + 1
-                # If at the end of a row, start at the start of the row below
-                if self.x > self.size - 1:
-                    self.x = 0
-                    self.y = self.y + 1
-                # If at the end of the grid, set marker back to the last cell
-                if self.y == self.size:
-                    self.y = self.size - 1
-                    self.x = self.y
-                    
+	        if not self.goToNextCell():
+                    self.force = True
+
             log.debug("Trying grid: ")
             log.debug(self.grid)
                 
         # If we come out of the while-loop, a solution is found
         self.stop_time = time.clock()
         self.solution = True
+
+    def goToNextCell(self):
+        if self.x == self.size - 1:
+            if self.y == self.size - 1:
+                log.debug("Cannot go to next cell. Already at the end")
+                return False
+            else:
+                self.y += 1
+                self.x = 0
+        else:
+            self.x += 1
+
+        return True
+
+    def goToPreviousCell(self):
+        if self.x == 0:
+            if self.y == 0:
+                log.debug("Cannot go to previous cell. Already at the start")
+                return False
+            else:
+                self.y -= 1
+                self.x = self.size - 1
+        else:
+            self.x -= 1
+
+        return True
+
+    def increaseCurrentCell(self):
+        if self.grid[self.y, self.x] == self.size:
+            return False
+        else:
+            self.grid[self.y, self.x] += 1
         
+        return True
+
+    def currentCellUnique(self):
+        return ((self.y == 0 or not self.grid[self.y, self.x] in self.grid[:self.y, self.x])
+            and (self.x == 0 or not self.grid[self.y, self.x] in self.grid[self.y, :self.x]))
+
     def print_elapsed_time(self):
         # Print the time it took to solve the puzzle
         if self.solution == True:
@@ -387,7 +343,7 @@ class CalcudokuSolver(object):
             if not os.path.isdir(output_dir):
                 os.makedirs(output_dir)
             if output_file == None:
-                log.warn("No filename given. Making one up myself.")
+                log.debug("No filename given. Making one up myself.")
                 output_file = datetime.now().strftime(YYYYmmddHHmmss)
                 output_file = os.path.join(output_file,".out")
             output_path = os.path.join(output_dir,os.path.basename(output_file))
@@ -403,7 +359,7 @@ class CalcudokuSolver(object):
 
     def add_group(self, group):
         if not self.initialized:
-            log.warn("Add group: Not yet initialized")
+            log.debug("Add group: Not yet initialized")
             return False
         # Pass on group to checker.
         self.checker.add_group(group)
