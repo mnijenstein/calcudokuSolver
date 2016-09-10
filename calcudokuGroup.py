@@ -29,10 +29,10 @@ class CalcudokuGroup(object):
         # Group may be entered as:
         
         str = "Result: %i" % self.result
-        str += "Operator: %r" % self.operator
-        str += "Cells: "
+        str += "\nOperator: %r" % self.operator
+        str += "\nCells: "
         for cell in self.cells:
-            str += "(%i,%i)" % cell.get_coordinate()
+            str += "\n(%i,%i)" % cell.get_coordinate()
 
         return str
 

@@ -91,11 +91,17 @@ class CalcudokuChecker(object):
         if grid is not None:
             self.grid = grid
 
+        log.debug("Checking grid...")
+        log.debug(self.grid)
+
         if 0 in self.grid:
             return False
             
         # Check groups. Stop if one fails.
-        for i in range(len(self.groups)):
+        # Groups are probably added from top left to bottom right. 
+        # The grid is changed most in the bottom right corner, 
+        # so checking the groups in reverse should be a little more efficient.
+        for i in range(len(self.groups))[::-1]:
             if not self.evaluate_group(i):
                 log.debug("Group %d fails" % i)
                 log.debug(self.groups[i].group_info())
@@ -278,9 +284,6 @@ class CalcudokuSolver(object):
 	        if not self.goToNextCell():
                     self.force = True
 
-            log.debug("Trying grid: ")
-            log.debug(self.grid)
-                
         # If we come out of the while-loop, a solution is found
         self.stop_time = time.clock()
         self.solution = True
