@@ -266,9 +266,11 @@ class CalcudokuSolver(object):
         self.y = 0
         self.maxReached = False
         self.force = False
+        self.nrOfTries = 0
         while (self.y != self.x or self.x != self.size - 1 or 
                not self.checker.grid_is_solution(self.grid)):
 
+            self.nrOfTries += 1
             while ((not self.currentCellUnique() and not self.maxReached)
                 or self.force):
                 self.force = False
@@ -283,6 +285,12 @@ class CalcudokuSolver(object):
             else:
 	        if not self.goToNextCell():
                     self.force = True
+
+            if self.nrOfTries % (self.size**self.size * 1000) == 0:
+                output_file = time.strftime('%Y%m%d%H%M%S')+".out"
+                output_path = file(os.path.join(output_dir,os.path.basename(output_file)),'w')
+                output_path.write("Try: %i \n" % self.nrOfTries)
+                savetxt(output_path,self.grid,fmt='%d')
 
         # If we come out of the while-loop, a solution is found
         self.stop_time = time.clock()
@@ -347,9 +355,8 @@ class CalcudokuSolver(object):
                 os.makedirs(output_dir)
             if output_file == None:
                 log.debug("No filename given. Making one up myself.")
-                output_file = datetime.now().strftime(YYYYmmddHHmmss)
-                output_file = os.path.join(output_file,".out")
-            output_path = os.path.join(output_dir,os.path.basename(output_file))
+                output_file = time.strftime('%Y%m%d%H%M%S') + ".out"
+            output_path = file(os.path.join(output_dir,os.path.basename(output_file)),'w')
             log.debug(output_path)
             
             #outFile = open(output_path,'w')
@@ -357,6 +364,9 @@ class CalcudokuSolver(object):
             #log.debug(self.grid)
             format = 'd '*self.size
             savetxt(output_path,self.grid,fmt='%d')
+            output_path.write("\n")
+            output_path.write("Elapsed time: %.2f s\n" % (self.stop_time-self.start_time))
+            output_path.write("Number of tries: %i\n" % self.nrOfTries)
             #outFile.write(self.grid)
             #outFile.close()
 
