@@ -44,7 +44,7 @@ class CalcudokuChecker(object):
                 return False
 
         # Check rows and colums. Stop if one fails.
-        return (self.check_rows() AND self.check_columns())
+        return (self.check_rows() & self.check_columns())
             
     def check_rows(self):
         # Check if all rows in the grid have unique values
@@ -69,9 +69,9 @@ class CalcudokuChecker(object):
         # Check if all columns in the grid have unique values
 
         # Construct reference series to check against
-        validColumn = arange(1, size+1).transpose()
+        validColumn = arange(1, self.size+1).transpose()
 
-        for i in range(size):
+        for i in range(self.size):
             # Sort column and check against reference
             column = array(self.grid[:,i])
             column.sort()
@@ -94,7 +94,7 @@ class CalcudokuChecker(object):
             group.operator == operator.div):
             self.sort_on_value(group.cells)
 
-        outcome = grid[group.cells[0].get_coordinate()]
+        outcome = self.grid[group.cells[0].get_coordinate()]
         for cell in group.cells[1:]:
             outcome = group.operator(outcome, self.grid[cell.get_coordinate()])
 
@@ -109,7 +109,7 @@ class CalcudokuChecker(object):
             tempCell = None
             i = j
             while (i < ( len(groupCells)-1 ) and
-                    self.grid[groupCells[i].get_coordinate()] < grid[groupCells[i+1].get_coordinate()]):
+                    self.grid[groupCells[i].get_coordinate()] < self.grid[groupCells[i+1].get_coordinate()]):
                 tempCell = groupCells[i+1]
                 groupCells[i+1] = groupCells[i]
                 groupCells[i] = tempCell

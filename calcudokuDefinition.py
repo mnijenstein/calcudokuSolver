@@ -22,6 +22,9 @@ class CalcudokuDefinition(object):
     def set_size(self, size):
         self.size = size
         
+    def get_size(self):
+        return self.size
+
     def read_from_file(self, input_file=None):
         size_known = False
         operators = {

@@ -63,7 +63,7 @@ class CalcudokuSolver(object):
         self.initialized = False
         if size > 0:
             self.size = size
-            self.checker = CalcudokuChecker(self.size)
+            self.checker = cc.CalcudokuChecker()
             self.grid = zeros((self.size,self.size))
             self.initialized = True
             self.start_time = 0
@@ -77,59 +77,31 @@ class CalcudokuSolver(object):
     def set_size(self, size):
         self.__init__(size)
 
-    def solve(self,nr_threads):
-        # Create the number of requested threads and start each of them at equal distances between 1 and size
-
-        # Nr of threads cannot be larger than size
-        if nr_threads > self.size:
-            nr_threads = self.size
-        log.debug("Nr of threads: %i" % nr_threads)
-
+    def solver_thread(self, definition, start_number=1):
         self.start_time = time.clock()
 
-        threads = []
-        for i in range(nr_threads):
-            start_number = 1 + i*(self.size / nr_of_threads)
-            log.info("Starting thread with start_number %i" % start_number)
-            t = threading.Thread(target=self.solver_thread, args=(start_number,))
-            threads.append(t)
-            t.start()
-
-        main_thread = threading.currentThread()
-
-        for t in threading.enumerate():
-            if t is main_thread:
-                continue
-            log.debug('Joining %s', t.getName())
-            t.join()
-
-        # If we come out of one of the threads, a solution is found
-        self.stop_time = time.clock()
-        self.solution = True
-
-    def solver_thread(self,start_number=1):
         if not self.initialized:
             log.warn("Solve: Not yet initialized")
             return False
             
         log.info("Going to solve the calcudoku...")
 
-        local_x = 0
-        local_y = 0
+        self.x = 0
+        self.y = 0
 
         # Initialize grid with start_number
         log.info("Initializing grid...")
-        local_grid = start_number*ones((self.size, self.size))
-        log.info(local_grid)
+        self.grid = start_number*ones((self.size, self.size))
+        log.info(self.grid)
 
         # Find solution by increasing cell values starting at the top left corner
-        local_x = 0
-        local_y = 0
-        local_maxReached = False
-        local_force = False
-        local_nrOfTries = 0
-        while (local_y != local_x or local_x != local_size - 1 or 
-               not local_checker.grid_is_solution(local_grid)):
+        self.x = 0
+        self.y = 0
+        self.maxReached = False
+        self.force = False
+        self.nrOfTries = 0
+        while (self.y != self.x or self.x != self.size - 1 or 
+               not self.checker.validate(self.grid, definition)):
 
             while ((not self.currentCellUnique() and not self.maxReached)
                 or self.force):
@@ -145,6 +117,10 @@ class CalcudokuSolver(object):
             else:
 	        if not self.goToNextCell():
                     self.force = True
+        self.solution = True
+        self.stop_time = time.clock()
+        self.print_solution()
+        self.print_elapsed_time()
 
     def goToNextCell(self):
         if self.x == self.size - 1:
@@ -226,8 +202,31 @@ if not (input_file == ""):
 print("Calcudoku succesfully read")
 raw_input("Press key to continu...")
 
-solution = ""
-solution = cs.solve(calcudoku,1)
-print solution
+# Create the number of requested threads and start each of them at equal distances between 1 and size
+
+# Nr of threads cannot be larger than size
+if nr_of_threads > calcudoku.get_size():
+     nr_of_threads = calcudoku.get_size()
+log.debug("Nr of threads: %i" % nr_of_threads)
+
+threads = []
+for i in range(nr_of_threads):
+    start_number = 1 + i*(calcudoku.get_size() / nr_of_threads)
+    log.info("Starting thread with start_number %i" % start_number)
+    solver = CalcudokuSolver(calcudoku.get_size())
+    t = threading.Thread(target=solver.solver_thread, args=(calcudoku, start_number,))
+    threads.append(t)
+    t.start()
+
+main_thread = threading.currentThread()
+
+for t in threading.enumerate():
+    if t is main_thread:
+        continue
+    log.debug('Joining %s', t.getName())
+    t.join()
+
+# If we come out of one of the threads, a solution is found
+
 #print cs.get_elapsed_time() 
 #write_to_file(solution)
