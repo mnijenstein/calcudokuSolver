@@ -77,7 +77,7 @@ class CalcudokuSolver(object):
     def set_size(self, size):
         self.__init__(size)
 
-    def solver_thread(self, definition, start_number=1):
+    def solver_thread(self, solution_found, definition, start_number=1):
         self.start_time = time.clock()
 
         if not self.initialized:
@@ -103,6 +103,10 @@ class CalcudokuSolver(object):
         while (self.y != self.x or self.x != self.size - 1 or 
                not self.checker.validate(self.grid, definition)):
 
+            if solution_found.isSet(): 
+                log.info("Quitting thread")
+                return
+
             while ((not self.currentCellUnique() and not self.maxReached)
                 or self.force):
                 self.force = False
@@ -115,9 +119,13 @@ class CalcudokuSolver(object):
                 self.goToPreviousCell()
                 self.force = True
             else:
-	        if not self.goToNextCell():
+                if not self.goToNextCell():
                     self.force = True
+
+            log.debug(self.grid)
+
         self.solution = True
+        solution_found.set()
         self.stop_time = time.clock()
         self.print_solution()
         self.print_elapsed_time()
@@ -209,12 +217,13 @@ if nr_of_threads > calcudoku.get_size():
      nr_of_threads = calcudoku.get_size()
 log.debug("Nr of threads: %i" % nr_of_threads)
 
+solution_found = threading.Event()
 threads = []
 for i in range(nr_of_threads):
     start_number = 1 + i*(calcudoku.get_size() / nr_of_threads)
     log.info("Starting thread with start_number %i" % start_number)
     solver = CalcudokuSolver(calcudoku.get_size())
-    t = threading.Thread(target=solver.solver_thread, args=(calcudoku, start_number,))
+    t = threading.Thread(name=i, target=solver.solver_thread, args=(solution_found, calcudoku, start_number))
     threads.append(t)
     t.start()
 
