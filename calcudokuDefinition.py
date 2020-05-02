@@ -6,14 +6,11 @@
 # M. Nijenstein
 #####################
 
-from numpy import *
 import cell
 import calcudokuGroup as cg
 import operator
-import itertools
 import logging as log
 import string
-import os
 
 class CalcudokuDefinition(object):
     def __init__(self):
@@ -32,8 +29,8 @@ class CalcudokuDefinition(object):
             "-": operator.sub,
             "*": operator.mul,
             "x": operator.mul,
-            "/": operator.div,
-            ":": operator.div,
+            "/": operator.truediv,
+            ":": operator.truediv,
             "%": operator.mod
         }
         
@@ -49,19 +46,19 @@ class CalcudokuDefinition(object):
                     else:
                         if not size_known: #search for size first
                             log.debug("Searching for size...")
-                            line = string.join(line.split(),"")
+
                             if line[:4].lower() == "size":
                                 line = line[5:].split("#")
-                                self.set_size(string.atoi(line[0]))
+                                self.set_size(int(line[0]))
                                 size_known = True
                                 log.info("Found size: %i" % self.size)
                         else:
                             line = line.split()
                             if line[0] in operators:
-                                group = cg.CalcudokuGroup(operators.get(line[0]),string.atoi(line[1]))
+                                group = cg.CalcudokuGroup(operators.get(line[0]),int(line[1]))
                                 for coord in line[2:]:
                                     coords = coord.split(",")
-                                    group.add_cells(cell.Cell(string.atoi(coords[0])-1,string.atoi(coords[1])-1))
+                                    group.add_cells(cell.Cell(int(coords[0])-1,int(coords[1])-1))
                                 log.debug("Added group: ")
                                 log.debug(group.group_info())
                                 self.groups.append(group)

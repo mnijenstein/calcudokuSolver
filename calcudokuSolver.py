@@ -6,16 +6,11 @@
 # M. Nijenstein
 #####################
 
-from numpy import *
-import cell
-import calcudokuGroup as cg
+import numpy
+print('numpy: {}'.format(numpy.__version__))
 import calcudokuDefinition as cd
 import calcudokuChecker as cc
-import operator
-import weakref
-import itertools
 import logging as log
-import string
 import os
 import time
 import threading
@@ -64,7 +59,7 @@ class CalcudokuSolver(object):
         if size > 0:
             self.size = size
             self.checker = cc.CalcudokuChecker()
-            self.grid = zeros((self.size,self.size))
+            self.grid = numpy.zeros((self.size,self.size))
             self.initialized = True
             self.start_time = 0
             self.stop_time = 0
@@ -91,7 +86,7 @@ class CalcudokuSolver(object):
 
         # Initialize grid with start_number
         log.info("Initializing grid...")
-        self.grid = start_number*ones((self.size, self.size))
+        self.grid = start_number*numpy.ones((self.size, self.size))
         log.info(self.grid)
 
         # Find solution by increasing cell values starting at the top left corner
@@ -190,12 +185,12 @@ class CalcudokuSolver(object):
             if output_file == None:
                 log.debug("No filename given. Making one up myself.")
                 output_file = input_file + time.strftime('%Y%m%d%H%M%S') + ".out"
-            output_path = file(os.path.join(output_dir,os.path.basename(output_file)),'w')
+            output_path = os.file(os.path.join(output_dir,os.path.basename(output_file)),'w')
             log.debug(output_path)
             
             #outFile = open(output_path,'w')
-            format = 'd '*self.size
-            savetxt(output_path,self.grid,fmt='%d')
+            #format = 'd '*self.size
+            os.savetxt(output_path,self.grid,fmt='%d')
             output_path.write("\n")
             output_path.write("Elapsed time: %.2f s\n" % (self.stop_time-self.start_time))
             output_path.write("Number of tries: %i\n" % self.nrOfTries)
@@ -208,7 +203,7 @@ if not (input_file == ""):
     calcudoku.read_from_file(input_file)
 
 print("Calcudoku succesfully read")
-raw_input("Press key to continu...")
+input("Press key to continu...")
 
 # Create the number of requested threads and start each of them at equal distances between 1 and size
 
@@ -220,7 +215,7 @@ log.debug("Nr of threads: %i" % nr_of_threads)
 solution_found = threading.Event()
 threads = []
 for i in range(nr_of_threads):
-    start_number = 1 + i*(calcudoku.get_size() / nr_of_threads)
+    start_number = 1 + i*(calcudoku.get_size() // nr_of_threads)
     log.info("Starting thread with start_number %i" % start_number)
     solver = CalcudokuSolver(calcudoku.get_size())
     t = threading.Thread(name=i, target=solver.solver_thread, args=(solution_found, calcudoku, start_number))
@@ -238,4 +233,4 @@ for t in threading.enumerate():
 # If we come out of one of the threads, a solution is found
 
 #print cs.get_elapsed_time() 
-#write_to_file(solution)
+write_to_file(solution)

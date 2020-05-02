@@ -6,14 +6,12 @@
 # M. Nijenstein
 #####################
 
-from numpy import *
-import cell
-import calcudokuGroup as cg
-import calcudokuDefinition as cd
+import numpy
 import operator
-import weakref
-import itertools
 import logging as log
+
+from numpy import arange
+from numpy import array
 
 class CalcudokuChecker(object):
     def __init__(self):
@@ -91,7 +89,7 @@ class CalcudokuChecker(object):
 
         # Only sort for groups that require sorting (substraction and division)
         if (group.operator == operator.sub or
-            group.operator == operator.div):
+            group.operator == operator.truediv):
             self.sort_on_value(group.cells)
 
         outcome = self.grid[group.cells[0].get_coordinate()]

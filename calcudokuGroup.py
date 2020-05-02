@@ -40,9 +40,9 @@ class CalcudokuGroup(object):
         # Print all information about the given group
         # Group may be entered as:
         
-        print "Result: %i" % self.result
-        print "Operator: %r" % self.operator
-        print "Cells: "
+        print("Result: %i" % self.result)
+        print("Operator: %r" % self.operator)
+        print("Cells: ")
         for cell in self.cells:
-            print "(%i,%i)" % cell.get_coordinate()
+            print("(%i,%i)" % cell.get_coordinate())
 
